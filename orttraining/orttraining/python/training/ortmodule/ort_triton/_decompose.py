@@ -46,6 +46,19 @@ class DecomposeDispatch(object):
     def _filter_none_nodes(self, nodes):
         return [node for node in nodes if node is not None]
 
+    def Exp(self, node: NodeProto, graph: GraphProto, **kwargs):
+        x = node.input[0]
+        dtype, _ = self._get_dtype_and_shape(x, **kwargs)
+        is_half = dtype == TensorProto.FLOAT16 or dtype == TensorProto.BFLOAT16
+        if not is_half:
+            return [node]
+        node_name = node.name
+        y = node.output[0]
+        cast_out, cast_node = self._new_node(node_name, "Cast", [x], to=TensorProto.FLOAT)
+        exp_out, exp_node = self._new_node(node_name, "Exp", [cast_out])
+        _, cast_node1 = self._new_node(node_name, "Cast", [exp_out], outputs=[y], to=dtype)
+        return self._filter_none_nodes([cast_node, exp_node, cast_node1])
+
     def LayerNormalization(self, node: NodeProto, graph: GraphProto, **kwargs):
         node_name = node.name
         x = node.input[0]

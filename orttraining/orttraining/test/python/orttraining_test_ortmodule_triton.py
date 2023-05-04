@@ -57,6 +57,18 @@ def _torch_div(input1, input2):
     return input1 / input2
 
 
+def _torch_pow(input, exponent):
+    return torch.pow(input, exponent)
+
+
+def _torch_sqrt(input):
+    return torch.sqrt(input)
+
+
+def _torch_exp(input):
+    return torch.exp(input)
+
+
 def _torch_softmax(input, **kwargs):
     axis = kwargs.get("axis", -1)
     return torch.softmax(input, axis)
@@ -68,6 +80,9 @@ class TorchFuncExecutor:
         "Sub": _torch_sub,
         "Mul": _torch_mul,
         "Div": _torch_div,
+        "Pow": _torch_pow,
+        "Sqrt": _torch_sqrt,
+        "Exp": _torch_exp,
         "Softmax": _torch_softmax,
     }
 
@@ -79,8 +94,8 @@ class TorchFuncExecutor:
 
 
 def _run_op_test(op_type, onnx_dtype, create_model_func, gen_inputs_func, **kwargs):
-    rtol = kwargs.get("rtol", 1e-04)
-    atol = kwargs.get("atol", 1e-05)
+    rtol = kwargs.get("rtol", 1e-03 if onnx_dtype == TensorProto.FLOAT16 else 1e-04)
+    atol = kwargs.get("atol", 1e-03 if onnx_dtype == TensorProto.FLOAT16 else 1e-05)
     pt_inputs = gen_inputs_func(_onnx_dtype_to_torch_dtype(onnx_dtype))
     ort_inputs = copy.deepcopy(pt_inputs)
     pt_outputs = TorchFuncExecutor.run(op_type, *pt_inputs, **kwargs)
@@ -103,8 +118,8 @@ def _run_module_test(module_cls, dtype, gen_inputs_func, triton_op_count, **kwar
         prediction = model(*tensors)
         return prediction
 
-    rtol = kwargs.get("rtol", 1e-04)
-    atol = kwargs.get("atol", 1e-05)
+    rtol = kwargs.get("rtol", 1e-03 if dtype == torch.float16 else 1e-04)
+    atol = kwargs.get("atol", 1e-03 if dtype == torch.float16 else 1e-05)
     for _ in range(10):
         pt_inputs = gen_inputs_func(dtype)
         ort_inputs = copy.deepcopy(pt_inputs)
@@ -132,7 +147,7 @@ def _run_module_test(module_cls, dtype, gen_inputs_func, triton_op_count, **kwar
 @pytest.mark.parametrize("op_type", ["Add", "Sub", "Mul", "Div"])
 @pytest.mark.parametrize("onnx_dtype", [TensorProto.FLOAT, TensorProto.FLOAT16])
 @pytest.mark.parametrize("input_shapes", [([3, 4], [3, 4]), ([2, 3, 3, 3], [3, 1, 3])])
-def test_elementwise_op(op_type, onnx_dtype, input_shapes):
+def test_binary_elementwise_op(op_type, onnx_dtype, input_shapes):
     def _create_model(op_type, onnx_dtype):
         node = helper.make_node(op_type, ["X", "Y"], ["Z"], name="test")
         graph = helper.make_graph(
@@ -155,14 +170,29 @@ def test_elementwise_op(op_type, onnx_dtype, input_shapes):
     _run_op_test(op_type, onnx_dtype, _create_model, _gen_inputs)
 
 
+@pytest.mark.parametrize("op_type", ["Sqrt", "Exp"])
+@pytest.mark.parametrize("onnx_dtype", [TensorProto.FLOAT, TensorProto.FLOAT16])
+@pytest.mark.parametrize("input_shape", [[3, 4], [2, 3, 3, 3]])
+def test_unary_elementwise_op(op_type, onnx_dtype, input_shape):
+    def _create_model(op_type, onnx_dtype):
+        node = helper.make_node(op_type, ["X"], ["Y"], name="test")
+        graph = helper.make_graph(
+            [node],
+            "test",
+            [helper.make_tensor_value_info("X", onnx_dtype, None)],
+            [helper.make_tensor_value_info("Y", onnx_dtype, None)],
+        )
+        return helper.make_model(graph, producer_name="test")
+
+    def _gen_inputs(dtype):
+        return (torch.rand(*input_shape, dtype=dtype, device=DEVICE),)
+
+    _run_op_test(op_type, onnx_dtype, _create_model, _gen_inputs)
+
+
 @pytest.mark.parametrize("onnx_dtype", [TensorProto.FLOAT, TensorProto.FLOAT16])
 @pytest.mark.parametrize("input_shape_and_axis", [([3, 4], -1), ([2, 3, 3, 3], 1)])
 def test_softmax_op(onnx_dtype, input_shape_and_axis):
-    kwargs = {"axis": input_shape_and_axis[1]}
-    if onnx_dtype == TensorProto.FLOAT16:
-        kwargs["rtol"] = 1e-03
-        kwargs["atol"] = 1e-03
-
     def _create_model(op_type, onnx_dtype, **kwargs):
         node = helper.make_node(op_type, ["X"], ["Y"], name="test", **kwargs)
         graph = helper.make_graph(
@@ -176,6 +206,7 @@ def test_softmax_op(onnx_dtype, input_shape_and_axis):
     def _gen_inputs(dtype):
         return [torch.randn(*input_shape_and_axis[0], dtype=dtype, device=DEVICE)]
 
+    kwargs = {"axis": input_shape_and_axis[1]}
     _run_op_test("Softmax", onnx_dtype, _create_model, _gen_inputs, **kwargs)
 
 
@@ -193,8 +224,4 @@ def test_elementwise_module(dtype):
             torch.randn(3, 4, dtype=dtype, device=DEVICE, requires_grad=True),
         )
 
-    kwargs = {}
-    if dtype == torch.float16:
-        kwargs["rtol"] = 1e-03
-        kwargs["atol"] = 1e-03
-    _run_module_test(NeuralNetElementwise, dtype, _gen_inputs, 1, **kwargs)
+    _run_module_test(NeuralNetElementwise, dtype, _gen_inputs, 1)

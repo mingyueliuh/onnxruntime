@@ -26,7 +26,7 @@ _ELEMENTWISE_OPS = {
     "Sub": {"versions": [13, 14]},
     "Mul": {"versions": [13, 14]},
     "Div": {"versions": [13, 14]},
-    "Pow": {"versions": [13, 15]},
+    # "Pow": {"versions": [13, 15]},
     "Sqrt": {"versions": [13]},
     "Exp": {"versions": [13]},
     "Where": {"versions": [9, 16]},
