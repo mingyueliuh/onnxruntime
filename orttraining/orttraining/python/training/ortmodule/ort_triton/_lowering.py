@@ -30,8 +30,12 @@ from ._sorted_graph import SortedGraph
 from ._utils import get_reduce_info, sort_reduce_axes, to_numpy_array
 
 
-# A NodeGroup contains nodes that can be lowered to a single Triton kernel node.
 class NodeGroup:
+    """
+    A NodeGroup contains nodes that can be lowered to a single Triton kernel node.
+
+    """
+
     def __init__(self, node: NodeProto, reduce_axes: List[int], node_arg_infos: Dict[str, TensorInfo]):
         self._node_arg_infos = node_arg_infos
         self.nodes_groups: List[Any] = [node]
@@ -140,6 +144,10 @@ class NodeGroup:
 
 
 class KernelIO:
+    """
+    Used to represent the inputs and outputs of a kernel(triton kernel).
+    """
+
     def __init__(self):
         self.module_inputs: List[str] = []
         self.cross_kernel_inputs: List[str] = []
@@ -151,6 +159,10 @@ class KernelIO:
 
 # GraphLowering is a pass to lower a SortedGraph to a ModuleNode, which contains one or more KernelNodes.
 class GraphLowering:
+    """
+    calling lowering pass to translate from onnx graph to irnode.
+    """
+
     def __init__(self, sorted_graph: SortedGraph):
         self._sorted_graph: SortedGraph = sorted_graph
         self._node_arg_infos: Dict[str, TensorInfo] = sorted_graph.node_arg_infos

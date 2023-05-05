@@ -3,7 +3,14 @@
 # Licensed under the MIT License.
 # --------------------------------------------------------------------------
 
-# Generate code for each IR node.
+"""
+Generate code for each IR node.
+Mostly, Nodes are classified into two categories:
+    1. ElementwiseKernelNode: compute a tensor from other tensors, e.g. ElementwiseKernelNode
+    2. ReduceKernelNode: perform a reduction computation on a tensor, e.g. reduce_sum/max/min
+        one or more axes are supported
+
+"""
 
 from typing import Tuple
 
@@ -34,6 +41,9 @@ from ._utils import may_add_brackets
 
 
 class TritonCodegen(NodeVisitor):
+    """
+    Specialized codegen for Triton backend.
+    """
     def __init__(self):
         super().__init__()
 

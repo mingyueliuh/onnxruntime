@@ -15,6 +15,11 @@ from ._utils import get_attribute, get_reduce_info
 
 
 class DecomposeDispatch(object):
+    """
+    A node does only responsible for a single computation or a type of triton ops.
+    For those compound Onnx nodes, like softmax/layernorm/groupnorm, etc., we need to decompose them into a series of
+    simple ops.
+    """
     def __init__(self):
         super().__init__()
         self.count = 0
