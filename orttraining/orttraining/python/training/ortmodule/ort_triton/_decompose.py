@@ -46,7 +46,7 @@ class DecomposeDispatch(object):
     def _filter_none_nodes(self, nodes):
         return [node for node in nodes if node is not None]
 
-    def Exp(self, node: NodeProto, graph: GraphProto, **kwargs):
+    def _elementwise_compute_on_float32(self, node: NodeProto, graph: GraphProto, **kwargs):
         x = node.input[0]
         dtype, _ = self._get_dtype_and_shape(x, **kwargs)
         is_half = dtype == TensorProto.FLOAT16 or dtype == TensorProto.BFLOAT16
@@ -54,10 +54,24 @@ class DecomposeDispatch(object):
             return [node]
         node_name = node.name
         y = node.output[0]
-        cast_out, cast_node = self._new_node(node_name, "Cast", [x], to=TensorProto.FLOAT)
-        exp_out, exp_node = self._new_node(node_name, "Exp", [cast_out])
-        _, cast_node1 = self._new_node(node_name, "Cast", [exp_out], outputs=[y], to=dtype)
-        return self._filter_none_nodes([cast_node, exp_node, cast_node1])
+        op_type = node.op_type
+        inputs = [input for input in node.input]
+        cast_nodes = []
+        for idx, input in enumerate(inputs):
+            dtype, _ = self._get_dtype_and_shape(input, **kwargs)
+            if dtype == TensorProto.FLOAT16 or dtype == TensorProto.BFLOAT16:
+                cast_out, cast_node = self._new_node(node_name, "Cast", [input], to=TensorProto.FLOAT)
+                inputs[idx] = cast_out
+                cast_nodes.append(cast_node)
+        op_out, op_node = self._new_node(node_name, op_type, inputs)
+        _, cast_node1 = self._new_node(node_name, "Cast", [op_out], outputs=[y], to=dtype)
+        return self._filter_none_nodes(cast_nodes + [op_node, cast_node1])
+
+    def Exp(self, node: NodeProto, graph: GraphProto, **kwargs):
+        return self._elementwise_compute_on_float32(node, graph, **kwargs)
+
+    def Pow(self, node: NodeProto, graph: GraphProto, **kwargs):
+        return self._elementwise_compute_on_float32(node, graph, **kwargs)
 
     def LayerNormalization(self, node: NodeProto, graph: GraphProto, **kwargs):
         node_name = node.name

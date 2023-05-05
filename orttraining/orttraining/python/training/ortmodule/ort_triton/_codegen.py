@@ -240,7 +240,7 @@ class TritonCodegen(NodeVisitor):
         "Mul": "{indent}{o0} = {i0} * {i1}\n",
         "Div": "{indent}{o0} = {i0} / {i1}\n",
         "Relu": "{indent}{o0} = tl.maximum({i0}, 0.0)\n",
-        "Pow": "{indent}{o0} = tl.libdevice.pow({i0}, {i1})\n",
+        "Pow": "{indent}{o0} = tl.math.pow({i0}, {i1})\n",
         "Pow2": "{indent}{o0} = {i0} * {i0}\n",
         "Pow3": "{indent}{o0} = {i0} * {i0} * {i0}\n",
         "Sqrt": "{indent}{o0} = tl.sqrt({i0})\n",

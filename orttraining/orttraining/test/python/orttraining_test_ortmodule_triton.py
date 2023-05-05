@@ -69,9 +69,54 @@ def _torch_exp(input):
     return torch.exp(input)
 
 
+def _torch_cast(input, **kwargs):
+    return input.to(_onnx_dtype_to_torch_dtype(kwargs.get("to")))
+
+
+def _torch_where(condition, x, y):
+    return torch.where(condition, x, y)
+
+
+def _torch_sum(*inputs):
+    result = inputs[0]
+    for input in inputs[1:]:
+        result += input
+    return result
+
+
 def _torch_softmax(input, **kwargs):
     axis = kwargs.get("axis", -1)
     return torch.softmax(input, axis)
+
+
+def _torch_reduce(input, func, **kwargs):
+    rank = len(input.shape)
+    axes = kwargs.get("axes", [idx for idx in range(rank)])
+    keepdims = kwargs.get("keepdims", True)
+    axes = [axis if axis >= 0 else rank + axis for axis in axes]
+    axes.sort(reverse=True)
+    result = input
+    for axis in axes:
+        result = func(result, dim=axis, keepdim=keepdims)
+        if func == torch.max or func == torch.min:
+            result = result[0]
+    return result
+
+
+def _torch_reduce_sum(input, **kwargs):
+    return _torch_reduce(input, torch.sum, **kwargs)
+
+
+def _torch_reduce_mean(input, **kwargs):
+    return _torch_reduce(input, torch.mean, **kwargs)
+
+
+def _torch_reduce_max(input, **kwargs):
+    return _torch_reduce(input, torch.max, **kwargs)
+
+
+def _torch_reduce_min(input, **kwargs):
+    return _torch_reduce(input, torch.min, **kwargs)
 
 
 class TorchFuncExecutor:
@@ -83,6 +128,13 @@ class TorchFuncExecutor:
         "Pow": _torch_pow,
         "Sqrt": _torch_sqrt,
         "Exp": _torch_exp,
+        "Cast": _torch_cast,
+        "Where": _torch_where,
+        "Sum": _torch_sum,
+        "ReduceSum": _torch_reduce_sum,
+        "ReduceMean": _torch_reduce_mean,
+        "ReduceMax": _torch_reduce_max,
+        "ReduceMin": _torch_reduce_min,
         "Softmax": _torch_softmax,
     }
 
@@ -98,6 +150,7 @@ def _run_op_test(op_type, onnx_dtype, create_model_func, gen_inputs_func, **kwar
     atol = kwargs.get("atol", 1e-03 if onnx_dtype == TensorProto.FLOAT16 else 1e-05)
     pt_inputs = gen_inputs_func(_onnx_dtype_to_torch_dtype(onnx_dtype))
     ort_inputs = copy.deepcopy(pt_inputs)
+    ort_inputs = [tensor.to(torch.uint8) if tensor.dtype == torch.bool else tensor for tensor in ort_inputs]
     pt_outputs = TorchFuncExecutor.run(op_type, *pt_inputs, **kwargs)
     model_str = create_model_func(op_type, onnx_dtype, **kwargs).SerializeToString()
     ort_outputs = execute_triton_op("", hash(model_str), model_str, *[to_dlpack(tensor) for tensor in ort_inputs])
@@ -170,6 +223,25 @@ def test_binary_elementwise_op(op_type, onnx_dtype, input_shapes):
     _run_op_test(op_type, onnx_dtype, _create_model, _gen_inputs)
 
 
+@pytest.mark.parametrize("onnx_dtype", [TensorProto.FLOAT, TensorProto.FLOAT16])
+@pytest.mark.parametrize("input_shapes", [([3, 4], [3, 4]), ([2, 3, 3, 3], [3, 1, 3], [2, 1, 3, 1])])
+def test_sum_op(onnx_dtype, input_shapes):
+    def _create_model(op_type, onnx_dtype):
+        node = helper.make_node(op_type, [f"I{idx}" for idx in range(len(input_shapes))], ["O"], name="test")
+        graph = helper.make_graph(
+            [node],
+            "test",
+            [helper.make_tensor_value_info(f"I{idx}", onnx_dtype, None) for idx in range(len(input_shapes))],
+            [helper.make_tensor_value_info("O", onnx_dtype, None)],
+        )
+        return helper.make_model(graph, producer_name="test")
+
+    def _gen_inputs(dtype):
+        return tuple([torch.randn(*input_shape, dtype=dtype, device=DEVICE) for input_shape in input_shapes])
+
+    _run_op_test("Sum", onnx_dtype, _create_model, _gen_inputs)
+
+
 @pytest.mark.parametrize("op_type", ["Sqrt", "Exp"])
 @pytest.mark.parametrize("onnx_dtype", [TensorProto.FLOAT, TensorProto.FLOAT16])
 @pytest.mark.parametrize("input_shape", [[3, 4], [2, 3, 3, 3]])
@@ -188,6 +260,123 @@ def test_unary_elementwise_op(op_type, onnx_dtype, input_shape):
         return (torch.rand(*input_shape, dtype=dtype, device=DEVICE),)
 
     _run_op_test(op_type, onnx_dtype, _create_model, _gen_inputs)
+
+
+@pytest.mark.parametrize("onnx_dtype", [TensorProto.FLOAT, TensorProto.FLOAT16])
+@pytest.mark.parametrize("input_shape_and_exponent", [([3, 4], 2.0), ([2, 3, 3, 3], 0.5)])
+def test_pow_op(onnx_dtype, input_shape_and_exponent):
+    def _create_model(op_type, onnx_dtype):
+        node = helper.make_node(op_type, ["X", "Y"], ["Z"], name="test")
+        graph = helper.make_graph(
+            [node],
+            "test",
+            [
+                helper.make_tensor_value_info("X", onnx_dtype, None),
+                helper.make_tensor_value_info("Y", onnx_dtype, None),
+            ],
+            [helper.make_tensor_value_info("Z", onnx_dtype, None)],
+        )
+        return helper.make_model(graph, producer_name="test")
+
+    def _gen_inputs(dtype):
+        return (
+            torch.rand(*input_shape_and_exponent[0], dtype=dtype, device=DEVICE),
+            torch.tensor(input_shape_and_exponent[1], dtype=dtype, device=DEVICE),
+        )
+
+    _run_op_test("Pow", onnx_dtype, _create_model, _gen_inputs)
+
+
+@pytest.mark.parametrize("onnx_dtype", [TensorProto.FLOAT, TensorProto.FLOAT16])
+@pytest.mark.parametrize("input_shape", [[3, 4], [2, 3, 3, 3]])
+def test_cast_op(onnx_dtype, input_shape):
+    def _create_model(op_type, onnx_dtype, **kwargs):
+        to_onnx_dtype = kwargs.get("to")
+        node = helper.make_node(op_type, ["X"], ["Y"], name="test", **kwargs)
+        graph = helper.make_graph(
+            [node],
+            "test",
+            [
+                helper.make_tensor_value_info("X", onnx_dtype, None),
+            ],
+            [helper.make_tensor_value_info("Y", to_onnx_dtype, None)],
+        )
+        return helper.make_model(graph, producer_name="test")
+
+    def _gen_inputs(dtype):
+        return (torch.randn(*input_shape, dtype=dtype, device=DEVICE),)
+
+    kwargs = {"to": TensorProto.FLOAT16 if onnx_dtype == TensorProto.FLOAT else TensorProto.FLOAT}
+    _run_op_test("Cast", onnx_dtype, _create_model, _gen_inputs, **kwargs)
+
+
+@pytest.mark.parametrize("onnx_dtype", [TensorProto.FLOAT, TensorProto.FLOAT16])
+@pytest.mark.parametrize("input_shapes", [([3, 4], [3, 4], [3, 4]), ([2, 1, 3, 1], [2, 3, 3, 3], [3, 1, 3])])
+def test_where_op(onnx_dtype, input_shapes):
+    def _create_model(op_type, onnx_dtype):
+        node = helper.make_node(op_type, ["C", "X", "Y"], ["Z"], name="test")
+        graph = helper.make_graph(
+            [node],
+            "test",
+            [
+                helper.make_tensor_value_info("C", TensorProto.BOOL, None),
+                helper.make_tensor_value_info("X", onnx_dtype, None),
+                helper.make_tensor_value_info("Y", onnx_dtype, None),
+            ],
+            [helper.make_tensor_value_info("Z", onnx_dtype, None)],
+        )
+        return helper.make_model(graph, producer_name="test")
+
+    def _gen_inputs(dtype):
+        return (
+            torch.rand(*input_shapes[0], dtype=dtype, device=DEVICE) < 0.5,
+            torch.randn(*input_shapes[1], dtype=dtype, device=DEVICE),
+            torch.randn(*input_shapes[2], dtype=dtype, device=DEVICE),
+        )
+
+    _run_op_test("Where", onnx_dtype, _create_model, _gen_inputs)
+
+
+@pytest.mark.parametrize("op_type", ["ReduceMax", "ReduceMean", "ReduceMin", "ReduceSum"])
+@pytest.mark.parametrize("onnx_dtype", [TensorProto.FLOAT, TensorProto.FLOAT16])
+@pytest.mark.parametrize("input_shape_and_reduce_info", [([3, 4], [-1], True), ([2, 3, 3, 3], [1, 2], False)])
+def test_reduce_op(op_type, onnx_dtype, input_shape_and_reduce_info):
+    def _create_model(op_type, onnx_dtype, **kwargs):
+        reduce_inputs = ["X"]
+        initializer = []
+        if input_shape_and_reduce_info[1] is not None:
+            reduce_inputs.append("axes")
+            initializer.append(
+                helper.make_tensor(
+                    "axes",
+                    onnx.TensorProto.INT64,
+                    [len(input_shape_and_reduce_info[1])],
+                    input_shape_and_reduce_info[1],
+                )
+            )
+        node = (
+            helper.make_node(op_type, reduce_inputs, ["Y"], name="test", keepdims=input_shape_and_reduce_info[2])
+            if input_shape_and_reduce_info[2] is not None
+            else helper.make_node(op_type, reduce_inputs, ["Y"], name="test")
+        )
+        graph = helper.make_graph(
+            [node],
+            "test",
+            [helper.make_tensor_value_info("X", onnx_dtype, None)],
+            [helper.make_tensor_value_info("Y", onnx_dtype, None)],
+            initializer=initializer,
+        )
+        return helper.make_model(graph, producer_name="test")
+
+    def _gen_inputs(dtype):
+        return (torch.randn(*input_shape_and_reduce_info[0], dtype=dtype, device=DEVICE),)
+
+    kwargs = {}
+    if input_shape_and_reduce_info[1] is not None:
+        kwargs["axes"] = input_shape_and_reduce_info[1]
+    if input_shape_and_reduce_info[2] is not None:
+        kwargs["keepdims"] = input_shape_and_reduce_info[2]
+    _run_op_test(op_type, onnx_dtype, _create_model, _gen_inputs, **kwargs)
 
 
 @pytest.mark.parametrize("onnx_dtype", [TensorProto.FLOAT, TensorProto.FLOAT16])
