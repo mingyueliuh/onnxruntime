@@ -219,7 +219,6 @@ FetchContent_Declare(
   PATCH_COMMAND ${ONNXRUNTIME_PROTOBUF_PATCH_COMMAND}
   FIND_PACKAGE_ARGS 3.21.12 NAMES Protobuf
 )
-
 set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build protobuf tests" FORCE)
 #TODO: we'd better to turn the following option off. However, it will cause
 # ".\build.bat --config Debug --parallel --skip_submodule_sync --update" fail with an error message:
