@@ -230,6 +230,16 @@ struct OrtApiForVaip {
   void (*graph_set_inputs)(Graph& graph,
                            gsl::span<const NodeArg* const> inputs);                                                                                   // [92]
   int (*node_arg_external_location)(const Graph& graph, const NodeArg& node_arg, std::string& file, size_t& offset, size_t& size, size_t& checksum);  // [93]
+  int (*vaip_xcompiler_compile)(const char* input_xmodel,
+                                size_t input_xmodel_size,
+                                const char* config_xmodel,
+                                size_t config_xmodel_size, void* state,
+                                void (*k)(void*, void*, size_t));                                     // [94]
+  const char* (*vaip_get_default_config)();                                                           // [95]
+  int (*vaip_get_pattern_as_binary)(const char* name, void* state, void (*k)(void*, void*, size_t));  // [96]
+  void (*vaip_get_pattern_list)(void* state, void (*k)(void*, void*, size_t));                        // [97]
+  int (*vaip_get_mem_xclbin)(const char* name, void* state, void (*k)(void*, void*, size_t));         // [98]
+  bool (*vaip_has_mem_xclbin)(const char* name);                                                      // [99]
 };
 
 #ifndef USE_VITISAI
