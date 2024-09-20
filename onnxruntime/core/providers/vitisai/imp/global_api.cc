@@ -63,6 +63,8 @@ struct OrtVitisAIEpAPI {
                                 size_t config_xmodel_size, void* state,
                                 char* (*allocator)(void*, size_t)) = nullptr;
   const char* (*vaip_get_default_config)() = nullptr;
+  void* (*vaip_get_pattern)(const std::string& name) = nullptr;
+  void (*initialize_onnxruntime_vitisai_ep_internal)(vaip_core::OrtApiForVaip* api, std::vector<OrtCustomOpDomain*>& ret_domain) = nullptr;
   void Ensure() {
     if (handle_)
       return;
@@ -93,6 +95,9 @@ struct OrtVitisAIEpAPI {
 #endif
     ORT_THROW_IF_ERROR(env.GetSymbolFromLibrary(handle_, "vaip_xcompiler_compile", (void**)&vaip_xcompiler_compile));
     ORT_THROW_IF_ERROR(env.GetSymbolFromLibrary(handle_, "vaip_get_default_config", (void**)&vaip_get_default_config));
+    ORT_THROW_IF_ERROR(env.GetSymbolFromLibrary(handle_, "vaip_get_pattern", (void**)&vaip_get_pattern));
+    ORT_THROW_IF_ERROR(env.GetSymbolFromLibrary(handle_, "initialize_onnxruntime_vitisai_ep_internal", (void**)&initialize_onnxruntime_vitisai_ep_internal));
+
   }
 
  private:
@@ -201,7 +206,9 @@ void create_kernel_registry(std::vector<OrtCustomOpDomain*> domains) {
 void initialize_vitisai_ep() {
   s_library_vitisaiep.Ensure();
   s_domains_vitisaiep.reserve(100);
-  s_library_vitisaiep.initialize_onnxruntime_vitisai_ep(create_org_api_hook(), s_domains_vitisaiep);
+  auto api_hook = create_org_api_hook();
+  s_library_vitisaiep.initialize_onnxruntime_vitisai_ep(api_hook, s_domains_vitisaiep);
+  s_library_vitisaiep.initialize_onnxruntime_vitisai_ep_internal(api_hook, s_domains_vitisaiep);
   vaip::register_xir_ops(s_domains_vitisaiep);
   create_kernel_registry(s_domains_vitisaiep);
 }
@@ -428,6 +435,7 @@ vaip_core::OrtApiForVaip* create_org_api_hook() {
   the_global_api.node_arg_external_location = vaip::node_arg_external_location;
   the_global_api.vaip_xcompiler_compile = s_library_vitisaiep.vaip_xcompiler_compile;
   the_global_api.vaip_get_default_config = s_library_vitisaiep.vaip_get_default_config;
+  the_global_api.vaip_get_pattern = s_library_vitisaiep.vaip_get_pattern;
   if (!s_library_vitisaiep.vaip_get_version) {
     return reinterpret_cast<vaip_core::OrtApiForVaip*>(&(the_global_api.host_));
   } else {

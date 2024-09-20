@@ -236,6 +236,7 @@ struct OrtApiForVaip {
                                 size_t config_xmodel_size, void* state,
                                 char* (*allocator)(void*, size_t));  // [94]
   const char* (*vaip_get_default_config)();                         // [95]
+  void* (*vaip_get_pattern)(const std::string& name);               // [96]
 };
 
 #ifndef USE_VITISAI
