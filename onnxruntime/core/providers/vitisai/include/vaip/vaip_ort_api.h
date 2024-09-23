@@ -234,8 +234,8 @@ struct OrtApiForVaip {
                                 size_t input_xmodel_size,
                                 const char* config_xmodel,
                                 size_t config_xmodel_size, void* state,
-                                char* (*allocator)(void*, size_t));  // [94]
-  const char* (*vaip_get_default_config)();                         // [95]
+                                char* (*allocator)(void*, size_t));                                      // [94]
+  const char* (*vaip_get_default_config)();                                                              // [95]
   bool (*vaip_get_pattern_as_binary)(const char* name, void* state, char* (*allocator)(void*, size_t));  // [96]
 };
 

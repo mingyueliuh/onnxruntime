@@ -64,7 +64,7 @@ struct OrtVitisAIEpAPI {
                                 char* (*allocator)(void*, size_t)) = nullptr;
   const char* (*vaip_get_default_config)() = nullptr;
   bool (*vaip_get_pattern_as_binary)(const char* name, void* state, char* (*allocator)(void*, size_t)) = nullptr;
-  
+
   void Ensure() {
     if (handle_)
       return;
@@ -96,8 +96,6 @@ struct OrtVitisAIEpAPI {
     ORT_THROW_IF_ERROR(env.GetSymbolFromLibrary(handle_, "vaip_xcompiler_compile", (void**)&vaip_xcompiler_compile));
     ORT_THROW_IF_ERROR(env.GetSymbolFromLibrary(handle_, "vaip_get_default_config", (void**)&vaip_get_default_config));
     ORT_THROW_IF_ERROR(env.GetSymbolFromLibrary(handle_, "vaip_get_pattern_as_binary", (void**)&vaip_get_pattern_as_binary));
-    
-
   }
 
  private:
