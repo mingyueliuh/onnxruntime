@@ -63,7 +63,7 @@ struct OrtVitisAIEpAPI {
                                 size_t config_xmodel_size, void* state,
                                 char* (*allocator)(void*, size_t)) = nullptr;
   const char* (*vaip_get_default_config)() = nullptr;
-  int (*vaip_get_pattern_as_binary)(const char* name, void* state, void (*k)(void* , void*, size_t)) = nullptr;
+  int (*vaip_get_pattern_as_binary)(const char* name, void* state, void (*k)(void*, void*, size_t)) = nullptr;
   void (*vaip_get_pattern_list)(void* state, void (*k)(void*, void*, size_t)) = nullptr;
   void Ensure() {
     if (handle_)
