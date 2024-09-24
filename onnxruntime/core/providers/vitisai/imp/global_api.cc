@@ -63,8 +63,8 @@ struct OrtVitisAIEpAPI {
                                 size_t config_xmodel_size, void* state,
                                 char* (*allocator)(void*, size_t)) = nullptr;
   const char* (*vaip_get_default_config)() = nullptr;
-  bool (*vaip_get_pattern_as_binary)(const char* name, void* state, char* (*allocator)(void*, size_t)) = nullptr;
-
+  int (*vaip_get_pattern_as_binary)(const char* name, void* state, void (*k)(void*, void*, size_t)) = nullptr;
+  void (*vaip_get_pattern_list)(void* state, void (*k)(void*, void*, size_t)) = nullptr;
   void Ensure() {
     if (handle_)
       return;
@@ -96,6 +96,7 @@ struct OrtVitisAIEpAPI {
     ORT_THROW_IF_ERROR(env.GetSymbolFromLibrary(handle_, "vaip_xcompiler_compile", (void**)&vaip_xcompiler_compile));
     ORT_THROW_IF_ERROR(env.GetSymbolFromLibrary(handle_, "vaip_get_default_config", (void**)&vaip_get_default_config));
     ORT_THROW_IF_ERROR(env.GetSymbolFromLibrary(handle_, "vaip_get_pattern_as_binary", (void**)&vaip_get_pattern_as_binary));
+    ORT_THROW_IF_ERROR(env.GetSymbolFromLibrary(handle_, "vaip_get_pattern_list", (void**)&vaip_get_pattern_list));
   }
 
  private:
@@ -432,6 +433,7 @@ vaip_core::OrtApiForVaip* create_org_api_hook() {
   the_global_api.vaip_xcompiler_compile = s_library_vitisaiep.vaip_xcompiler_compile;
   the_global_api.vaip_get_default_config = s_library_vitisaiep.vaip_get_default_config;
   the_global_api.vaip_get_pattern_as_binary = s_library_vitisaiep.vaip_get_pattern_as_binary;
+  the_global_api.vaip_get_pattern_list = s_library_vitisaiep.vaip_get_pattern_list;
   if (!s_library_vitisaiep.vaip_get_version) {
     return reinterpret_cast<vaip_core::OrtApiForVaip*>(&(the_global_api.host_));
   } else {
