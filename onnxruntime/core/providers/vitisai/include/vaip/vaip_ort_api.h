@@ -238,6 +238,8 @@ struct OrtApiForVaip {
   const char* (*vaip_get_default_config)();                                                           // [95]
   int (*vaip_get_pattern_as_binary)(const char* name, void* state, void (*k)(void*, void*, size_t));  // [96]
   void (*vaip_get_pattern_list)(void* state, void (*k)(void*, void*, size_t));                        // [97]
+  void (*vaip_get_mem_xclbin)(const char* name, void* state, void (*k)(void*, void*, size_t));        // [98]
+  bool (*vaip_has_mem_xclbin)(const char* name);                                                      // [99]
 };
 
 #ifndef USE_VITISAI
