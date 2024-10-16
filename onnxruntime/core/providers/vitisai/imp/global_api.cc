@@ -45,7 +45,7 @@ uint32_t vaip_get_version_c();
 int create_ep_context_nodes_c(
     const std::vector<std::unique_ptr<vaip_core::ExecutionProvider>>& eps,
     vaip_core::DllSafe<std::vector<Node*>>* ret_value);
-int (*vitisai_ep_on_run_start_c)(
+int vitisai_ep_on_run_start_c(
     const std::vector<std::unique_ptr<vaip_core::ExecutionProvider>>& eps, const void* state,
     vaip_core::DllSafe<std::string> (*get_config_entry)(const void* state, const char* entry_name));
 std::vector<std::unique_ptr<vaip_core::ExecutionProvider>>* compile_onnx_model_with_options_c(
