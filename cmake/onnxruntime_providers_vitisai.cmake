@@ -33,8 +33,6 @@
   target_link_libraries(onnxruntime_providers_vitisai PRIVATE ${ONNXRUNTIME_PROVIDERS_SHARED} onnxruntime_vitisai_ep::onnxruntime_vitisai_ep)
   if(MSVC)
     onnxruntime_add_include_to_target(onnxruntime_providers_vitisai dbghelp)
-    set_property(TARGET onnxruntime_providers_vitisai APPEND_STRING PROPERTY LINK_FLAGS "-DEF:${ONNXRUNTIME_ROOT}/core/providers/vitisai/symbols.def")
-    target_sources(onnxruntime_providers_vitisai PRIVATE ${vaip_BINARY_DIR}/onnxruntime_vitisai_ep/onnxruntime_vitisai_ep.def)
   else(MSVC)
     set_property(TARGET onnxruntime_providers_vitisai APPEND_STRING PROPERTY LINK_FLAGS "-Xlinker --version-script=${ONNXRUNTIME_ROOT}/core/providers/vitisai/version_script.lds -Xlinker --gc-sections")
   endif(MSVC)
