@@ -30,7 +30,7 @@
   source_group(TREE ${ONNXRUNTIME_ROOT}/core FILES ${onnxruntime_providers_vitisai_cc_srcs})
   onnxruntime_add_shared_library(onnxruntime_providers_vitisai ${onnxruntime_providers_vitisai_cc_srcs})
   onnxruntime_add_include_to_target(onnxruntime_providers_vitisai ${ONNXRUNTIME_PROVIDERS_SHARED} ${GSL_TARGET} safeint_interface flatbuffers::flatbuffers)
-  target_link_libraries(onnxruntime_providers_vitisai PRIVATE ${ONNXRUNTIME_PROVIDERS_SHARED} onnxruntime_vitisai_ep::onnxruntime_vitisai_ep)
+  target_link_libraries(onnxruntime_providers_vitisai PRIVATE ${ONNXRUNTIME_PROVIDERS_SHARED} morphizen::morphizen-core-static)
   if(MSVC)
     onnxruntime_add_include_to_target(onnxruntime_providers_vitisai dbghelp)
   else(MSVC)
