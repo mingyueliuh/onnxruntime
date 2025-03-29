@@ -6,6 +6,7 @@
     GIT_TAG ${DEP_SHA1_vaip}
     GIT_SUBMODULES_RECURSE FALSE
     GIT_SHALLOW TRUE
+    EXCLUDE_FROM_ALL
     OVERRIDE_FIND_PACKAGE
   )
   find_package(vaip)
@@ -33,6 +34,7 @@
   target_link_libraries(onnxruntime_providers_vitisai PRIVATE ${ONNXRUNTIME_PROVIDERS_SHARED} morphizen::morphizen-core-static)
   if(MSVC)
     onnxruntime_add_include_to_target(onnxruntime_providers_vitisai dbghelp)
+    target_sources(onnxruntime_providers_vitisai PRIVATE ${ONNXRUNTIME_ROOT}/core/providers/vitisai/imp/onnxruntime_providers_vitisai.def)
   else(MSVC)
     set_property(TARGET onnxruntime_providers_vitisai APPEND_STRING PROPERTY LINK_FLAGS "-Xlinker --version-script=${ONNXRUNTIME_ROOT}/core/providers/vitisai/version_script.lds -Xlinker --gc-sections")
   endif(MSVC)
