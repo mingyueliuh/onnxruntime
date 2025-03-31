@@ -47,7 +47,7 @@ uint32_t vaip_get_version();
 int create_ep_context_nodes(
     const std::vector<std::unique_ptr<vaip_core::ExecutionProvider>>& eps,
     vaip_core::DllSafe<std::vector<Node*>>* ret_value);
-std::vector<std::unique_ptr<vaip_core::ExecutionProvider>>* compile_onnx_model_with_options(
+std::vector<std::unique_ptr<vaip_core::ExecutionProvider>>* compile_onnx_model_vitisai_ep_with_options(
     const std::string& model_path, const onnxruntime::Graph& graph, const onnxruntime::ProviderOptions& options);
 std::vector<std::unique_ptr<vaip_core::ExecutionProvider>>* compile_onnx_model_vitisai_ep_with_error_handling(
     const std::string& model_path, const onnxruntime::Graph& graph, const onnxruntime::ProviderOptions& options, void* status, vaip_core::error_report_func func);
@@ -101,15 +101,15 @@ struct OrtVitisAIEpAPI {
     if (handle_)
       return;
 
-    this->initialize_onnxruntime_vitisai_ep = initialize_onnxruntime_vitisai_ep;
-    this->compile_onnx_model_with_options = compile_onnx_model_with_options;
-    this->compile_onnx_model_vitisai_ep_with_error_handling = compile_onnx_model_vitisai_ep_with_error_handling;
-    this->create_ep_context_nodes = create_ep_context_nodes;
-    this->vitisai_ep_on_run_start = vitisai_ep_on_run_start;
-    this->vitisai_ep_set_ep_dynamic_options = vitisai_ep_set_ep_dynamic_options;
-    this->vaip_get_version = vaip_get_version;
-    this->profiler_collect = profiler_collect;
-    this->deinitialize_onnxruntime_vitisai_ep = deinitialize_onnxruntime_vitisai_ep;
+    this->initialize_onnxruntime_vitisai_ep = ::initialize_onnxruntime_vitisai_ep;
+    this->compile_onnx_model_with_options = ::compile_onnx_model_vitisai_ep_with_options;
+    this->compile_onnx_model_vitisai_ep_with_error_handling = ::compile_onnx_model_vitisai_ep_with_error_handling;
+    this->create_ep_context_nodes = ::create_ep_context_nodes;
+    this->vitisai_ep_on_run_start = ::vitisai_ep_on_run_start;
+    this->vitisai_ep_set_ep_dynamic_options = ::vitisai_ep_set_ep_dynamic_options;
+    this->vaip_get_version = ::vaip_get_version;
+    this->profiler_collect = ::profiler_collect;
+    this->deinitialize_onnxruntime_vitisai_ep = ::deinitialize_onnxruntime_vitisai_ep;
 
     auto& env = Provider_GetHost()->Env__Default();
     auto& logger = *Provider_GetHost()->LoggingManager_GetDefaultLogger();
